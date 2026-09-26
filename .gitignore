@@ -1,0 +1,19 @@
+# Secrets - never commit real credentials
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+
+# Test/tooling caches
+.pytest_cache/
+.deepeval/
+.deepeval-cache.json
