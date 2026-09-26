@@ -123,6 +123,18 @@ keeping the gate meaningful for the app's own dependencies and for future,
 fixable CVEs. The existing `.trivyignore` list is retained as an explicit
 record of known/accepted findings.
 
+**Important — these CVEs were suppressed, not fixed.** None of the 38 HIGH
+findings were remediated. They still exist in the image. All 38 are OS-package
+vulnerabilities in the Debian base of `python:3.12-slim` with **no upstream fix
+available at scan time**, so there is nothing to upgrade to. `ignore-unfixed:
+true` tells Trivy to skip vulnerabilities that have no fix; the `.trivyignore`
+file additionally lists specific CVE IDs that were explicitly accepted. The
+effect is that the pipeline stops blocking on issues we cannot act on, while
+still failing the moment a *fixable* CRITICAL/HIGH CVE appears (for example in
+our own Python dependencies). When Debian later publishes fixes for these
+packages, rebuilding on an updated base image will pull them in — no config
+change needed.
+
 ### 4. Fixed the DeepEval pipeline (HTTP 500 in CI)
 The DeepEval workflow started the backend but every model call returned
 `500 Internal Server Error`, even though the same call returned `200` locally.
