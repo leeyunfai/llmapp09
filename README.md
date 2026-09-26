@@ -71,14 +71,57 @@ never picked them up. `llmapp09` is now its own repository with `.github/workflo
 at the root, so all pipelines are detected and run.
 
 ### 3. Fixed the Trivy security scan blocking image pushes
-The Docker build jobs failed because Trivy flagged **38 HIGH-severity CVEs** in
-OS packages of the `python:3.12-slim` base image (glibc, util-linux, etc.).
-These are distro-level issues with **no upstream fix available**, so they cannot
-be remediated by updating packages. We added `ignore-unfixed: true` to the Trivy
-step in both Docker workflows. Trivy now fails the build only on vulnerabilities
-that actually have a fix — keeping the gate meaningful for the app's own
-dependencies and for future, fixable CVEs. The existing `.trivyignore` list is
-retained as an explicit record of known/accepted findings.
+The Docker build jobs failed because Trivy flagged **38 HIGH-severity CVEs**
+(0 CRITICAL) in OS packages of the `python:3.12-slim` base image (glibc,
+util-linux, etc.). These are distro-level issues with **no upstream fix
+available**, so they cannot be remediated by updating packages, yet the scan
+step blocked the image push with `exit-code: 1`.
+
+**Failing GitHub Actions runs:**
+- LLM Frontend Python CI — https://github.com/leeyunfai/llmapp09/actions/runs/36226011174
+- LLM Multiroute CI — https://github.com/leeyunfai/llmapp09/actions/runs/36226011239
+
+The failure surfaced in the `Run Trivy vulnerability scanner` step, e.g.:
+
+```
+Total: 38 (HIGH: 38, CRITICAL: 0)
+...
+│ bsdutils │ CVE-2026-76642 │ HIGH │ affected │ 1:2.41.5-0+deb13u1 │ ... │
+Process completed with exit code 1.
+```
+
+**The scan step as it was (blocked on unfixable OS CVEs):**
+
+```yaml
+- name: Run Trivy vulnerability scanner
+  uses: aquasecurity/trivy-action@master
+  with:
+    image-ref: leeyunfai/llm-multiroute:scan
+    format: 'table'
+    exit-code: '1'
+    severity: 'CRITICAL,HIGH'
+    trivyignores: .trivyignore
+```
+
+**The fix — add `ignore-unfixed: true`** to the Trivy step in both Docker
+workflows (`llm-multiroute-ci.yml` and `llm-frontend-python-ci.yml`):
+
+```yaml
+- name: Run Trivy vulnerability scanner
+  uses: aquasecurity/trivy-action@master
+  with:
+    image-ref: leeyunfai/llm-multiroute:scan
+    format: 'table'
+    exit-code: '1'
+    severity: 'CRITICAL,HIGH'
+    ignore-unfixed: true      # only fail on CVEs that have an available fix
+    trivyignores: .trivyignore
+```
+
+Trivy now fails the build only on vulnerabilities that actually have a fix —
+keeping the gate meaningful for the app's own dependencies and for future,
+fixable CVEs. The existing `.trivyignore` list is retained as an explicit
+record of known/accepted findings.
 
 ### 4. Fixed the DeepEval pipeline (HTTP 500 in CI)
 The DeepEval workflow started the backend but every model call returned
