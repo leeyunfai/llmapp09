@@ -39,8 +39,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r deepeval-tests/requirements.txt
 
+      - name: Write backend .env from secrets
+        run: |
+          cat > .env <<EOF
+          OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+          OLLAMA_API_KEY=${OLLAMA_API_KEY}
+          OLLAMA_TEMPERATURE=0.7
+          EOF
+
       - name: Build and start backend
-        run: docker compose up -d llm-multiroute
+        run: docker compose up -d --build llm-multiroute
 
       - name: Wait for backend to be ready
         run: |
@@ -57,6 +65,22 @@ jobs:
           docker compose logs llm-multiroute
           exit 1
 
+      - name: Smoke test classify endpoint
+        run: |
+          echo "Sending a test request to /api/ai/classify..."
+          code=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            -X POST http://localhost:8080/api/ai/classify \
+            -H "Content-Type: application/json" \
+            -d '{"text":"I love this product, it works great!"}')
+          echo "HTTP $code"
+          cat /tmp/resp.json
+          echo
+          if [ "$code" != "200" ]; then
+            echo "Classify smoke test failed. Backend logs:"
+            docker compose logs llm-multiroute
+            exit 1
+          fi
+
       - name: Run DeepEval classify tests
         working-directory: deepeval-tests
         run: deepeval test run test_classify.py -v
@@ -72,6 +96,10 @@ jobs:
       - name: Run DeepEval intent tests
         working-directory: deepeval-tests
         run: deepeval test run test_intent.py -v
+
+      - name: Dump backend logs on failure
+        if: failure()
+        run: docker compose logs llm-multiroute
 
       - name: Tear down backend
         if: always()
