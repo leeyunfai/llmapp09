@@ -16,6 +16,7 @@ Kubernetes manifests, GitHub Actions CI/CD, and LLM evaluation tests
 | `llm-multiroute/` | FastAPI backend: routing, guardrails, monitoring, tests |
 | `llm-frontend-python/` | Flask frontend that calls the backend |
 | `deepeval-tests/` | DeepEval LLM evaluation suite (classify/sentiment/summarize/intent) |
+| `promptfoo-tests/` | Promptfoo endpoint evaluation suite (classify/sentiment/summarize/intent) |
 | `.github/workflows/` | CI/CD pipelines (see below) |
 | `docker-compose.yml` | Runs the full stack locally |
 
@@ -38,7 +39,7 @@ curl -X POST http://localhost:8080/api/ai/classify \
 
 ## CI/CD pipelines
 
-Three GitHub Actions workflows run on push / PR to `main`, scoped by path
+Four GitHub Actions workflows run on push / PR to `main`, scoped by path
 filters so only the affected pipeline runs:
 
 | Workflow | Trigger paths | What it does |
@@ -46,6 +47,7 @@ filters so only the affected pipeline runs:
 | `llm-multiroute-ci.yml` | `llm-multiroute/**` | Ruff lint → pytest unit tests → Docker build → Trivy scan → push to Docker Hub |
 | `llm-frontend-python-ci.yml` | `llm-frontend-python/**` | Ruff lint → Docker build → Trivy scan → push to Docker Hub |
 | `deepeval-tests-ci.yml` | `deepeval-tests/**`, `llm-multiroute/**` | Start backend via compose → smoke test → run DeepEval evals |
+| `promptfoo-tests-ci.yml` | `promptfoo-tests/**`, `llm-multiroute/**` | Start backend via compose → smoke test → run Promptfoo evals |
 
 Published images: `leeyunfai/llm-multiroute` and `leeyunfai/llm-frontend-python`.
 
@@ -66,7 +68,7 @@ and docs. All image names and the Docker Hub login username were updated to
 GitHub only runs workflows found in the **repository-root** `.github/workflows/`
 directory. The workflows were previously nested one level too deep, so Actions
 never picked them up. `llmapp09` is now its own repository with `.github/workflows/`
-at the root, so all three pipelines are detected and run.
+at the root, so all pipelines are detected and run.
 
 ### 3. Fixed the Trivy security scan blocking image pushes
 The Docker build jobs failed because Trivy flagged **38 HIGH-severity CVEs** in
@@ -101,12 +103,16 @@ using `pytest-rerunfailures` (`--reruns 2`), which DeepEval forwards to pytest.
 `pytest-rerunfailures` is now pinned in `deepeval-tests/requirements.txt` so the
 behavior does not rely on a transitive dependency.
 
-### 6. Removed a dead workflow
-`promptfoo-tests-ci.yml` referenced a `promptfoo-tests/` directory that does not
-exist in this app, so it could only ever fail. It was removed.
+### 6. Restored the Promptfoo evaluation suite
+The `promptfoo-tests/` suite and its `promptfoo-tests-ci.yml` workflow were
+brought in from the original repository. The workflow originally had the same
+CI environment gap as DeepEval, so the same fixes were applied: it writes a
+`.env` from secrets before `docker compose up`, smoke-tests `/api/ai/classify`,
+and dumps backend logs on failure. It runs the four Promptfoo endpoint suites
+(classify, sentiment, summarize, intent) against the live backend.
 
 ### Result
-All three workflows are green, and both Docker images are published to Docker
+All four workflows are green, and both Docker images are published to Docker
 Hub under `leeyunfai/`.
 
 ---
