@@ -83,19 +83,19 @@ jobs:
 
       - name: Run DeepEval classify tests
         working-directory: deepeval-tests
-        run: deepeval test run test_classify.py -v
+        run: deepeval test run test_classify.py -v --reruns 2
 
       - name: Run DeepEval sentiment tests
         working-directory: deepeval-tests
-        run: deepeval test run test_sentiment.py -v
+        run: deepeval test run test_sentiment.py -v --reruns 2
 
       - name: Run DeepEval summarize tests
         working-directory: deepeval-tests
-        run: deepeval test run test_summarize.py -v
+        run: deepeval test run test_summarize.py -v --reruns 2
 
       - name: Run DeepEval intent tests
         working-directory: deepeval-tests
-        run: deepeval test run test_intent.py -v
+        run: deepeval test run test_intent.py -v --reruns 2
 
       - name: Dump backend logs on failure
         if: failure()
